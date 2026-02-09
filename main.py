@@ -88,7 +88,7 @@ def image_to_braille(image_path, width=100, threshold=128, invert=False, bg_colo
 # Update your main usage to include bg_color parameter
 if __name__ == "__main__":
     braille_art = image_to_braille(
-        image_path='bk.png',
+        image_path='bk.webp',
         width=80,
         threshold=150,
         invert=True,
