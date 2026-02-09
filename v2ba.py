@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import imageio
 import os
 import json
@@ -9,9 +9,9 @@ def frame_to_braille(frame, width=60, threshold=150):
     """Convert frame to braille ASCII text."""
     img = Image.fromarray(frame)
     
-    # Handle transparency with BLACK background
+    # Handle transparency with WHITE background
     if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
-        background = Image.new('RGB', img.size, (0, 0, 0))
+        background = Image.new('RGB', img.size, (255, 255, 255))  # WHITE background
         if img.mode == 'P':
             img = img.convert('RGBA')
         elif img.mode == 'LA':
@@ -26,7 +26,7 @@ def frame_to_braille(frame, width=60, threshold=150):
     height = int(width * aspect * 0.5)
     img = img.resize((width, height * 4), Image.Resampling.LANCZOS)
     pixels = np.array(img)
-    pixels = 255 - pixels
+    pixels = 255 - pixels  # Invert: white bg becomes black in output
     
     braille_text = ""
     for y in range(0, height * 4, 4):
@@ -60,8 +60,8 @@ def create_all_outputs(video_path, output_dir="frames", fps=10, width=60, max_du
     video_fps = int(cap.get(cv2.CAP_PROP_FPS))
     frame_skip = max(1, video_fps // fps)
     
-    gif_frames = []  # For GIF
-    text_frames = []  # For individual .txt files
+    gif_frames = []
+    text_frames = []
     frame_count = 0
     extracted_count = 0
     
@@ -69,11 +69,11 @@ def create_all_outputs(video_path, output_dir="frames", fps=10, width=60, max_du
     print(f"📊 Original: {video_fps} FPS")
     print(f"🎯 Target: {fps} FPS, Width: {width} chars")
     
-    # Create font for text images (for GIF)
+    # Try to load font
     try:
-        from PIL import ImageDraw, ImageFont
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 12)
     except:
+        print("⚠️  Using default font")
         font = ImageFont.load_default()
     
     while True:
@@ -87,10 +87,10 @@ def create_all_outputs(video_path, output_dir="frames", fps=10, width=60, max_du
         if frame_count % frame_skip == 0:
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             
-            # 1. Get braille text
-            braille_text = frame_to_braille(frame_rgb, width=width)
+            # Get braille text
+            braille_text = frame_to_braille(frame_rgb, width=width, threshold=150)
             
-            # 2. Save individual .txt frame
+            # Save individual .txt frame
             frame_filename = f"frame_{extracted_count:04d}.txt"
             frame_path = os.path.join(output_dir, frame_filename)
             with open(frame_path, 'w', encoding='utf-8') as f:
@@ -102,18 +102,18 @@ def create_all_outputs(video_path, output_dir="frames", fps=10, width=60, max_du
                 "index": extracted_count
             })
             
-            # 3. Create image for GIF
+            # Create image for GIF from braille text
             lines = braille_text.split('\n')
             char_width = 12
             char_height = 18
             img_width = width * char_width
             img_height = len(lines) * char_height
             
-            # Create image with text
+            # Create image
             img = Image.new('RGB', (img_width, img_height), color='black')
             draw = ImageDraw.Draw(img)
             
-            # Draw each line
+            # Draw braille text
             for i, line in enumerate(lines):
                 draw.text((0, i * char_height), line, font=font, fill='white')
             
