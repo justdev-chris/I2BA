@@ -16,7 +16,7 @@ jobs:
         
     - name: Install dependencies
       run: |
-        pip install pillow numpy opencv-python
+        pip install pillow numpy opencv-python imageio
         sudo apt-get update
         sudo apt-get install -y ffmpeg
         
