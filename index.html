@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Braille Frame Sorter & Player</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #111;
+            color: white;
+            font-family: monospace;
+            padding: 20px;
+        }
+        h1 {
+            color: #0af;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .main-container {
+            display: flex;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .left-panel {
+            flex: 1;
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        .right-panel {
+            flex: 2;
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        .drop-zone {
+            border: 3px dashed #444;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: #0af;
+            background: #222;
+        }
+        
+        .frame-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        
+        .frame-item {
+            background: #222;
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            cursor: move;
+            transition: background 0.2s;
+            border: 1px solid transparent;
+        }
+        .frame-item:hover {
+            background: #2a2a2a;
+            border-color: #0af;
+        }
+        .frame-item.dragging {
+            opacity: 0.5;
+            background: #333;
+        }
+        
+        .handle {
+            cursor: move;
+            padding: 0 10px;
+            color: #666;
+            font-size: 18px;
+            user-select: none;
+        }
+        .handle:hover {
+            color: #0af;
+        }
+        
+        .frame-info {
+            flex: 1;
+            overflow: hidden;
+        }
+        .frame-name {
+            font-weight: bold;
+            color: #0af;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .frame-preview {
+            color: #888;
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .remove-btn {
+            background: #c00;
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+        }
+        .remove-btn:hover {
+            background: #f00;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+            padding: 15px;
+            background: #222;
+            border-radius: 8px;
+        }
+        
+        button {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: monospace;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #0af;
+            color: black;
+        }
+        button.active {
+            background: #0af;
+            color: black;
+        }
+        
+        .display-area {
+            background: #000;
+            padding: 20px;
+            border-radius: 10px;
+            min-height: 400px;
+            max-height: 600px;
+            overflow: auto;
+            font-size: 12px;
+            line-height: 1.2;
+            white-space: pre;
+            border: 1px solid #333;
+            text-align: center;
+        }
+        
+        .frame-counter {
+            text-align: center;
+            margin: 10px 0;
+            color: #0af;
+            font-size: 14px;
+        }
+        
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+        }
+        
+        input[type="range"] {
+            width: 100px;
+        }
+        
+        .file-count {
+            color: #888;
+            font-size: 14px;
+            margin-top: 10px;
+            text-align: center;
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #222;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        @media (max-width: 900px) {
+            .main-container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>🎬 Braille Frame Sorter & Player</h1>
+    
+    <div class="main-container">
+        <div class="left-panel">
+            <div class="drop-zone" id="dropZone">
+                📁 Drag & Drop .txt frame files here<br>
+                or <u>click to select files</u>
+                <input type="file" id="fileInput" accept=".txt" multiple style="display: none;">
+            </div>
+            
+            <div class="file-count" id="fileCount">0 frames loaded</div>
+            
+            <h3>Frame Order (Drag to sort):</h3>
+            <div class="frame-list" id="frameList">
+                <!-- Frames will appear here -->
+            </div>
+            
+            <div class="controls">
+                <button onclick="moveUp()">↑ Move Up</button>
+                <button onclick="moveDown()">↓ Move Down</button>
+                <button onclick="clearAll()">🗑️ Clear All</button>
+                <button onclick="reverseOrder()">🔄 Reverse</button>
+            </div>
+        </div>
+        
+        <div class="right-panel">
+            <div class="controls">
+                <button onclick="playPause()" id="playBtn">▶ Play</button>
+                <button onclick="stop()">⏹ Stop</button>
+                <button onclick="prevFrame()">◀ Prev</button>
+                <button onclick="nextFrame()">Next ▶</button>
+                <button onclick="firstFrame()">⏮ First</button>
+                <button onclick="lastFrame()">Last ⏭</button>
+                
+                <div class="speed-control">
+                    <span>Speed:</span>
+                    <input type="range" id="speedSlider" min="1" max="60" value="15">
+                    <span id="speedValue">15</span>
+                </div>
+            </div>
+            
+            <div class="frame-counter">
+                Frame: <span id="currentFrame">0</span> / <span id="totalFrames">0</span>
+            </div>
+            
+            <div id="display" class="display-area">
+                Upload .txt braille frames to begin...
+            </div>
+            
+            <div class="controls" style="margin-top: 20px;">
+                <button onclick="exportOrder()">💾 Export Order</button>
+                <button onclick="importOrder()">📂 Import Order</button>
+                <button onclick="saveFrames()">⬇️ Save All Frames</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let frames = [];
+        let currentFrameIndex = 0;
+        let isPlaying = false;
+        let playInterval;
+        let fps = 15;
+        let dragSrcEl = null;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setupDragAndDrop();
+            setupFileInput();
+            updateDisplay();
+        });
+        
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('dropZone');
+            const frameList = document.getElementById('frameList');
+            
+            // Click to select files
+            dropZone.addEventListener('click', () => {
+                document.getElementById('fileInput').click();
+            });
+            
+            // Drag and drop events
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+            
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('dragover');
+            });
+            
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                handleFiles(e.dataTransfer.files);
+            });
+            
+            // Frame list drag and drop
+            frameList.addEventListener('dragstart', handleDragStart);
+            frameList.addEventListener('dragover', handleDragOver);
+            frameList.addEventListener('dragleave', handleDragLeave);
+            frameList.addEventListener('drop', handleDrop);
+            frameList.addEventListener('dragend', handleDragEnd);
+        }
+        
+        function setupFileInput() {
+            document.getElementById('fileInput').addEventListener('change', (e) => {
+                handleFiles(e.target.files);
+            });
+        }
+        
+        function handleFiles(fileList) {
+            const files = Array.from(fileList);
+            files.forEach(file => {
+                if (!file.name.endsWith('.txt')) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    frames.push({
+                        id: Date.now() + Math.random(),
+                        name: file.name,
+                        content: content,
+                        size: file.size,
+                        preview: content.substring(0, 50).replace(/\n/g, ' ') + '...'
+                    });
+                    
+                    updateFrameList();
+                    if (frames.length === 1) {
+                        displayFrame(0);
+                    }
+                };
+                reader.readAsText(file);
+            });
+            
+            document.getElementById('fileInput').value = '';
+        }
+        
+        // Drag and Drop functions for reordering
+        function handleDragStart(e) {
+            dragSrcEl = e.target.closest('.frame-item');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', dragSrcEl.innerHTML);
+            dragSrcEl.classList.add('dragging');
+            
+            setTimeout(() => {
+                dragSrcEl.style.display = 'none';
+            }, 0);
+        }
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            const target = e.target.closest('.frame-item');
+            if (target && target !== dragSrcEl) {
+                const rect = target.getBoundingClientRect();
+                const midY = rect.top + rect.height / 2;
+                
+                if (e.clientY < midY) {
+                    target.parentNode.insertBefore(dragSrcEl, target);
+                } else {
+                    target.parentNode.insertBefore(dragSrcEl, target.nextSibling);
+                }
+            }
+        }
+        
+        function handleDragLeave(e) {
+            e.target.classList.remove('dragover');
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            if (dragSrcEl) {
+                dragSrcEl.style.display = '';
+                updateFrameOrderFromDOM();
+            }
+        }
+        
+        function handleDragEnd() {
+            if (dragSrcEl) {
+                dragSrcEl.classList.remove('dragging');
+                dragSrcEl.style.display = '';
+                dragSrcEl = null;
+            }
+        }
+        
+        function updateFrameOrderFromDOM() {
+            const frameItems = Array.from(document.querySelectorAll('.frame-item'));
+            const newFrames = [];
+            
+            frameItems.forEach(item => {
+                const frameId = parseInt(item.dataset.id);
+                const frame = frames.find(f => f.id === frameId);
+                if (frame) {
+                    newFrames.push(frame);
+                }
+            });
+            
+            frames = newFrames;
+            updateDisplay();
+        }
+        
+        function updateFrameList() {
+            const frameList = document.getElementById('frameList');
+            frameList.innerHTML = '';
+            
+            frames.forEach((frame, index) => {
+                const div = document.createElement('div');
+                div.className = 'frame-item';
+                div.dataset.id = frame.id;
+                div.draggable = true;
+                div.innerHTML = `
+                    <div class="handle">⋮⋮</div>
+                    <div class="frame-info">
+                        <div class="frame-name">${frame.name}</div>
+                        <div class="frame-preview">${frame.preview}</div>
+                    </div>
+                    <button class="remove-btn" onclick="removeFrame(${index})">×</button>
+                `;
+                frameList.appendChild(div);
+            });
+            
+            updateDisplay();
+        }
+        
+        function removeFrame(index) {
+            frames.splice(index, 1);
+            if (currentFrameIndex >= frames.length) {
+                currentFrameIndex = Math.max(0, frames.length - 1);
+            }
+            updateFrameList();
+            displayFrame(currentFrameIndex);
+        }
+        
+        function moveUp() {
+            if (currentFrameIndex > 0) {
+                [frames[currentFrameIndex], frames[currentFrameIndex - 1]] = 
+                [frames[currentFrameIndex - 1], frames[currentFrameIndex]];
+                currentFrameIndex--;
+                updateFrameList();
+                displayFrame(currentFrameIndex);
+            }
+        }
+        
+        function moveDown() {
+            if (currentFrameIndex < frames.length - 1) {
+                [frames[currentFrameIndex], frames[currentFrameIndex + 1]] = 
+                [frames[currentFrameIndex + 1], frames[currentFrameIndex]];
+                currentFrameIndex++;
+                updateFrameList();
+                displayFrame(currentFrameIndex);
+            }
+        }
+        
+        function clearAll() {
+            if (confirm('Clear all frames?')) {
+                frames = [];
+                currentFrameIndex = 0;
+                updateFrameList();
+                displayFrame(0);
+            }
+        }
+        
+        function reverseOrder() {
+            frames.reverse();
+            currentFrameIndex = frames.length - 1 - currentFrameIndex;
+            updateFrameList();
+            displayFrame(currentFrameIndex);
+        }
+        
+        // Playback functions
+        function displayFrame(index) {
+            if (frames.length === 0) {
+                document.getElementById('display').textContent = 'No frames loaded.';
+                return;
+            }
+            
+            if (index >= 0 && index < frames.length) {
+                currentFrameIndex = index;
+                document.getElementById('display').textContent = frames[index].content;
+                document.getElementById('currentFrame').textContent = index + 1;
+            }
+        }
+        
+        function playPause() {
+            if (frames.length === 0) return;
+            
+            if (isPlaying) {
+                clearInterval(playInterval);
+                document.getElementById('playBtn').textContent = '▶ Play';
+            } else {
+                document.getElementById('playBtn').textContent = '⏸ Pause';
+                playInterval = setInterval(() => {
+                    currentFrameIndex = (currentFrameIndex + 1) % frames.length;
+                    displayFrame(currentFrameIndex);
+                }, 1000 / fps);
+            }
+            isPlaying = !isPlaying;
+        }
+        
+        function stop() {
+            clearInterval(playInterval);
+            isPlaying = false;
+            document.getElementById('playBtn').textContent = '▶ Play';
+            displayFrame(0);
+        }
+        
+        function prevFrame() {
+            if (frames.length === 0) return;
+            clearInterval(playInterval);
+            isPlaying = false;
+            document.getElementById('playBtn').textContent = '▶ Play';
+            currentFrameIndex = (currentFrameIndex - 1 + frames.length) % frames.length;
+            displayFrame(currentFrameIndex);
+        }
+        
+        function nextFrame() {
+            if (frames.length === 0) return;
+            clearInterval(playInterval);
+            isPlaying = false;
+            document.getElementById('playBtn').textContent = '▶ Play';
+            currentFrameIndex = (currentFrameIndex + 1) % frames.length;
+            displayFrame(currentFrameIndex);
+        }
+        
+        function firstFrame() {
+            if (frames.length === 0) return;
+            clearInterval(playInterval);
+            isPlaying = false;
+            document.getElementById('playBtn').textContent = '▶ Play';
+            displayFrame(0);
+        }
+        
+        function lastFrame() {
+            if (frames.length === 0) return;
+            clearInterval(playInterval);
+            isPlaying = false;
+            document.getElementById('playBtn').textContent = '▶ Play';
+            displayFrame(frames.length - 1);
+        }
+        
+        // Speed control
+        document.getElementById('speedSlider').addEventListener('input', function() {
+            fps = parseInt(this.value);
+            document.getElementById('speedValue').textContent = fps;
+            
+            if (isPlaying) {
+                clearInterval(playInterval);
+                playInterval = setInterval(() => {
+                    currentFrameIndex = (currentFrameIndex + 1) % frames.length;
+                    displayFrame(currentFrameIndex);
+                }, 1000 / fps);
+            }
+        });
+        
+        function updateDisplay() {
+            document.getElementById('fileCount').textContent = `${frames.length} frames loaded`;
+            document.getElementById('totalFrames').textContent = frames.length;
+        }
+        
+        // Export/Import functions
+        function exportOrder() {
+            if (frames.length === 0) return;
+            
+            const order = frames.map(f => f.name);
+            const data = {
+                order: order,
+                frames: frames.map(f => ({
+                    name: f.name,
+                    content: f.content
+                }))
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'braille_frames_order.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function importOrder() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        if (data.frames && Array.isArray(data.frames)) {
+                            frames = data.frames.map((f, i) => ({
+                                id: Date.now() + i,
+                                name: f.name,
+                                content: f.content,
+                                size: f.content.length,
+                                preview: f.content.substring(0, 50).replace(/\n/g, ' ') + '...'
+                            }));
+                            updateFrameList();
+                            displayFrame(0);
+                            alert(`Imported ${frames.length} frames`);
+                        }
+                    } catch (err) {
+                        alert('Error importing file: ' + err.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+        
+        function saveFrames() {
+            if (frames.length === 0) return;
+            
+            const zip = new JSZip();
+            frames.forEach((frame, index) => {
+                zip.file(`${String(index + 1).padStart(4, '0')}_${frame.name}`, frame.content);
+            });
+            
+            zip.generateAsync({type: 'blob'}).then(content => {
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'braille_frames.zip';
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case ' ':
+                    e.preventDefault();
+                    playPause();
+                    break;
+                case 'ArrowLeft':
+                    prevFrame();
+                    break;
+                case 'ArrowRight':
+                    nextFrame();
+                    break;
+                case 'Home':
+                    firstFrame();
+                    break;
+                case 'End':
+                    lastFrame();
+                    break;
+            }
+        });
+    </script>
+    
+    <!-- JSZip library for saving as zip -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</body>
+</html>
