@@ -1,35 +1,19 @@
-name: Run v2ba.py and Upload Output
-
+name: Create Braille GIF
 on: [push, workflow_dispatch]
-
 jobs:
-  video-to-braille:
+  create-gif:
     runs-on: ubuntu-latest
-    
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-        
-    - name: Install dependencies
-      run: |
-        pip install pillow numpy opencv-python imageio
-        sudo apt-get update
-        sudo apt-get install -y ffmpeg
-        
-    - name: Run v2ba.py
-      run: |
-        python v2ba.py
-        
-    - name: Upload all outputs
-      uses: actions/upload-artifact@v4
-      with:
-        name: video-braille-output
-        path: |
-          *.gif
-          *.mp4
-          *.txt
-          output/
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - run: pip install pillow numpy opencv-python imageio imageio-ffmpeg
+      - run: python v2ba.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: braille-gif
+          path: |
+            *.gif
+            *.png
+            frames/
