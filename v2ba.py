@@ -3,11 +3,11 @@ import numpy as np
 from PIL import Image
 import os
 
-def frame_to_braille(frame, width=60, threshold=150):
+def frame_to_braille(frame, width=60):
     """Convert frame to braille ASCII text."""
     img = Image.fromarray(frame)
     
-    # Handle transparency with WHITE background
+    # Handle transparency - treat as WHITE
     if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
         background = Image.new('RGB', img.size, (255, 255, 255))
         if img.mode == 'P':
@@ -31,14 +31,15 @@ def frame_to_braille(frame, width=60, threshold=150):
             block = pixels[y:min(y+4, pixels.shape[0]), x:min(x+2, pixels.shape[1])]
             bits = 0
             if block.shape[0] > 0 and block.shape[1] > 0:
-                if block[0, 0] < threshold: bits |= 0b00000001
-                if block.shape[0] > 1 and block[1, 0] < threshold: bits |= 0b00000010
-                if block.shape[0] > 2 and block[2, 0] < threshold: bits |= 0b00000100
-                if block.shape[1] > 1 and block[0, 1] < threshold: bits |= 0b00001000
-                if block.shape[0] > 1 and block.shape[1] > 1 and block[1, 1] < threshold: bits |= 0b00010000
-                if block.shape[0] > 2 and block.shape[1] > 1 and block[2, 1] < threshold: bits |= 0b00100000
-                if block.shape[0] > 3 and block[3, 0] < threshold: bits |= 0b01000000
-                if block.shape[0] > 3 and block.shape[1] > 1 and block[3, 1] < threshold: bits |= 0b10000000
+                # WHITE (255) = NO DOT, anything else = DOT
+                if block[0, 0] < 254: bits |= 0b00000001
+                if block.shape[0] > 1 and block[1, 0] < 254: bits |= 0b00000010
+                if block.shape[0] > 2 and block[2, 0] < 254: bits |= 0b00000100
+                if block.shape[1] > 1 and block[0, 1] < 254: bits |= 0b00001000
+                if block.shape[0] > 1 and block.shape[1] > 1 and block[1, 1] < 254: bits |= 0b00010000
+                if block.shape[0] > 2 and block.shape[1] > 1 and block[2, 1] < 254: bits |= 0b00100000
+                if block.shape[0] > 3 and block[3, 0] < 254: bits |= 0b01000000
+                if block.shape[0] > 3 and block.shape[1] > 1 and block[3, 1] < 254: bits |= 0b10000000
             row += chr(0x2800 + bits)
         braille_text += row + "\n"
     
@@ -73,9 +74,8 @@ def video_to_frames(video_path, output_dir="frames", fps=10, width=60, max_durat
         
         if frame_count % frame_skip == 0:
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            braille_text = frame_to_braille(frame_rgb, width=width, threshold=150)
+            braille_text = frame_to_braille(frame_rgb, width=width)
             
-            # Save as .txt file
             frame_filename = f"frame_{extracted_count:04d}.txt"
             frame_path = os.path.join(output_dir, frame_filename)
             with open(frame_path, 'w', encoding='utf-8') as f:
