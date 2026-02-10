@@ -4,7 +4,7 @@ from PIL import Image
 import os
 
 def frame_to_braille(frame, width=60):
-    """Convert frame to braille ASCII text."""
+    """Convert video frames to braille ASCII text frames."""
     img = Image.fromarray(frame)
     
     # Handle transparency - treat as WHITE
